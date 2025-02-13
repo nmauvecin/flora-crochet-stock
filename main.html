@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flora Crochet - Control de Stock</title>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            max-width: 500px;
+            margin: auto;
+            padding: 20px;
+            background-color: #fff0f5;
+            color: #5a3d5c;
+        }
+        h2, h3 {
+            text-align: center;
+            color: #a64d79;
+        }
+        input, button {
+            margin: 5px 0;
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid #a64d79;
+            font-size: 14px;
+        }
+        input {
+            width: calc(100% - 16px);
+            background: #fff;
+        }
+        button {
+            background-color: #a64d79;
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        button:hover {
+            background-color: #8c3a63;
+        }
+        .flower-item {
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            border-radius: 8px;
+            background: white;
+            margin: 5px 0;
+            box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            font-size: 14px;
+        }
+        .flower-item button {
+            padding: 5px;
+            font-size: 12px;
+        }
+        .tab-container {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+        .tab {
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: 8px;
+            background: #a64d79;
+            color: white;
+            text-align: center;
+            font-size: 13px;
+        }
+        .tab:hover {
+            background-color: #8c3a63;
+        }
+        .hidden {
+            display: none;
+        }
+        .order-card {
+            background: white;
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.1);
+            margin: 10px 0;
+            text-align: left;
+            font-size: 14px;
+        }
+        .order-card strong {
+            color: #8c3a63;
+        }
+        .order-card button {
+            background-color: #ff6b6b;
+            padding: 5px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        @media (max-width: 500px) {
+            body {
+                padding: 15px;
+            }
+            input, button {
+                font-size: 12px;
+            }
+            .flower-item, .order-card {
+                font-size: 12px;
+                padding: 8px;
+            }
+            .tab {
+                font-size: 12px;
+                padding: 5px 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h2>Flora Crochet - Control de Stock</h2>
+    <input type="text" id="flowerName" placeholder="Nombre de la flor">
+    <input type="number" id="flowerQuantity" placeholder="Cantidad">
+    <button onclick="addFlower()">Agregar al Stock</button>
+    
+    <div class="tab-container">
+        <div class="tab" onclick="showSection('stock')">Stock</div>
+        <div class="tab" onclick="showSection('orders')">Pedidos</div>
+    </div>
+    
+    <div id="stockSection">
+        <h3 style="color: #d67d94;">Stock Disponible</h3>
+        <div id="stockList"></div>
+        <h3 style="color: #d67d94;">Vista Previa del Pedido</h3>
+        <input type="text" id="orderDescription" placeholder="Descripción del Pedido">
+        <div id="orderPreview"></div>
+        <button onclick="saveOrder()">Guardar Pedido</button>
+    </div>
+    
+    <div id="ordersSection" class="hidden">
+        <h3 style="color: #d67d94;">Pedidos</h3>
+        <div id="ordersList"></div>
+    </div>
+    
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            loadStock();
+            loadOrders();
+        });
+        let currentOrder = [];
+
+        function addFlower() {
+            let name = document.getElementById("flowerName").value.trim();
+            let quantity = parseInt(document.getElementById("flowerQuantity").value);
+            if (!name || quantity <= 0) return alert("Ingrese un nombre y cantidad válida");
+            
+            let stock = JSON.parse(localStorage.getItem("stock")) || [];
+            let existingFlower = stock.find(f => f.name === name);
+            if (existingFlower) {
+                existingFlower.quantity += quantity;
+            } else {
+                stock.push({ name, quantity });
+            }
+            localStorage.setItem("stock", JSON.stringify(stock));
+
+            document.getElementById("flowerName").value = "";
+            document.getElementById("flowerQuantity").value = "";
+            loadStock();
+        }
+
+        function markAsOrdered(index) {
+            let stock = JSON.parse(localStorage.getItem("stock"));
+            if (stock[index].quantity > 0) {
+                stock[index].quantity--;
+                let orderedFlower = currentOrder.find(f => f.name === stock[index].name);
+                if (orderedFlower) {
+                    orderedFlower.quantity++;
+                } else {
+                    currentOrder.push({ name: stock[index].name, quantity: 1 });
+                }
+                localStorage.setItem("stock", JSON.stringify(stock));
+                loadStock();
+                updateOrderPreview();
+            }
+        }
+
+        function updateOrderPreview() {
+            let orderPreview = document.getElementById("orderPreview");
+            orderPreview.innerHTML = currentOrder.map(f => `${f.name} - ${f.quantity} unidades`).join("<br>");
+        }
+
+        function saveOrder() {
+            if (currentOrder.length === 0) return alert("No hay flores en el pedido");
+            let orders = JSON.parse(localStorage.getItem("orders")) || [];
+            let description = document.getElementById("orderDescription").value.trim() || "Sin descripción";
+            orders.push({ description, flowers: [...currentOrder] });
+            localStorage.setItem("orders", JSON.stringify(orders));
+            currentOrder = [];
+            updateOrderPreview();
+            loadOrders();
+
+            document.getElementById("orderDescription").value = "";
+        }
+
+        function loadStock() {
+            let stock = JSON.parse(localStorage.getItem("stock")) || [];
+            let stockList = document.getElementById("stockList");
+            stockList.innerHTML = "";
+            
+            stock.forEach((flower, index) => {
+                let stockItem = document.createElement("div");
+                stockItem.classList.add("flower-item");
+                stockItem.innerHTML = `
+                    ${flower.name} - ${flower.quantity} disponibles 
+                    <button onclick="markAsOrdered(${index})">Agregar a Pedido</button>
+                `;
+                stockList.appendChild(stockItem);
+            });
+        }
+
+        function loadOrders() {
+            let orders = JSON.parse(localStorage.getItem("orders")) || [];
+            let ordersList = document.getElementById("ordersList");
+            ordersList.innerHTML = "";
+            
+            orders.forEach((order, index) => {
+                let orderItem = document.createElement("div");
+                orderItem.classList.add("flower-item");
+                orderItem.innerHTML = `
+                    <strong>Pedido #${index + 1}:</strong> ${order.description}<br>
+                    ${order.flowers.map(f => `${f.name} - ${f.quantity} unidades`).join(", ")}
+                    <button onclick="deleteOrder(${index})">Eliminar</button>
+                `;
+                ordersList.appendChild(orderItem);
+            });
+        }
+
+        function deleteOrder(index) {
+            let orders = JSON.parse(localStorage.getItem("orders"));
+            orders.splice(index, 1);
+            localStorage.setItem("orders", JSON.stringify(orders));
+            loadOrders();
+        }
+        
+        function showSection(section) {
+            document.getElementById("stockSection").classList.add("hidden");
+            document.getElementById("ordersSection").classList.add("hidden");
+            document.getElementById(section + "Section").classList.remove("hidden");
+            if (section === "orders") loadOrders();
+        }
+    </script>
+</body>
+</html>
